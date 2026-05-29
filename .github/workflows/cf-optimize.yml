@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 */3 * * *'
-
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -27,11 +26,16 @@ jobs:
               BEST_IP=$ip
             fi
           done
-          RID=$(curl -s "https://api.cloudflare.com/client/v4/zones/$ZID/dns_records?type=A&name=$DOM" -H "Authorization: Bearer $CF_TOKEN" | python3 -c "import sys,json;print(json.load(sys.stdin)['result'][0]['id'])" 2>/dev/null || echo "")
+          RID=$(curl -s "https://api.cloudflare.com/client/v4/zones/$ZID/dns_records?type=A&name=$DOM" \
+            -H "Authorization: Bearer $CF_TOKEN" | python3 -c "import sys,json;print(json.load(sys.stdin)['result'][0]['id'])" 2>/dev/null || echo "")
           if [ -n "$RID" ]; then
-            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZID/dns_records/$RID" -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"$DOM\",\"content\":\"$BEST_IP\",\"ttl\":1,\"proxied\":false}"
+            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZID/dns_records/$RID" \
+              -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+              --data "{\"type\":\"A\",\"name\":\"$DOM\",\"content\":\"$BEST_IP\",\"ttl\":1,\"proxied\":false}"
           else
-            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZID/dns_records" -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"$DOM\",\"content\":\"$BEST_IP\",\"ttl\":1,\"proxied\":false}"
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZID/dns_records" \
+              -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+              --data "{\"type\":\"A\",\"name\":\"$DOM\",\"content\":\"$BEST_IP\",\"ttl\":1,\"proxied\":false}"
           fi
           echo "BEST_IP=$BEST_IP" >> $GITHUB_OUTPUT
           echo "BEST_LATENCY=$BEST_LATENCY" >> $GITHUB_OUTPUT
@@ -42,17 +46,24 @@ jobs:
           TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TG_CHAT_ID }}
         run: |
-          URLS=("https://fakenewsfandai.ccwu.cc|CF反代面板" "https://fakenewsfandai.ccwu.cc/bb|Emby反代" "https://fakenewsfandai.ccwu.cc/nox|Nox反代" "https://fakenewsfandai.ccwu.cc/cat|thecat" "https://361b7fa0.fakenewscf.pages.dev|edgetunnel")
+          URLS=("https://fakenewsfandai.ccwu.cc|CF反代面板"
+                 "https://fakenewsfandai.ccwu.cc/bb|Emby反代"
+                 "https://fakenewsfandai.ccwu.cc/nox|Nox反代"
+                 "https://fakenewsfandai.ccwu.cc/cat|thecat"
+                 "https://361b7fa0.fakenewscf.pages.dev|edgetunnel")
           STATUS=""
           ALL_OK=true
           for item in "${URLS[@]}"; do
             URL=$(echo "$item" | cut -d'|' -f1)
             NAME=$(echo "$item" | cut -d'|' -f2)
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 15 "$URL" 2>/dev/null || echo "000")
+            # 一次 curl 同时拿状态码和延迟
+            RESULT=$(curl -s -o /dev/null -w "%{http_code} %{time_total}" --connect-timeout 10 --max-time 15 "$URL" 2>/dev/null || echo "000 0")
+            HTTP_CODE=$(echo "$RESULT" | awk '{print $1}')
+            LATENCY=$(echo "$RESULT" | awk '{printf "%.0f", $2 * 1000}')
             if [ "$HTTP_CODE" -ge 200 ] 2>/dev/null && [ "$HTTP_CODE" -lt 500 ] 2>/dev/null; then
-              STATUS="${STATUS}✅ ${NAME}: ${HTTP_CODE}\n"
+              STATUS="${STATUS}✅ ${NAME}: ${HTTP_CODE} | ${LATENCY}ms\n"
             else
-              STATUS="${STATUS}❌ ${NAME}: ${HTTP_CODE}\n"
+              STATUS="${STATUS}❌ ${NAME}: ${HTTP_CODE} | ${LATENCY}ms\n"
               ALL_OK=false
             fi
           done
