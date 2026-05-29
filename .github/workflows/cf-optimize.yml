@@ -42,7 +42,7 @@ jobs:
           TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TG_CHAT_ID }}
         run: |
-          URLS=("https://fakenewsfandai.ccwu.cc|CF反代面板" "https://fakenewsfandai.ccwu.cc/bb|Emby反代" "https://fakenewsfandai.ccwu.cc/nox|Nox反代" "https://361b7fa0.fakenewscf.pages.dev|edgetunnel")
+          URLS=("https://fakenewsfandai.ccwu.cc|CF反代面板" "https://fakenewsfandai.ccwu.cc/bb|Emby反代" "https://fakenewsfandai.ccwu.cc/nox|Nox反代" "https://fakenewsfandai.ccwu.cc/cat|thecat" "https://361b7fa0.fakenewscf.pages.dev|edgetunnel")
           STATUS=""
           ALL_OK=true
           for item in "${URLS[@]}"; do
