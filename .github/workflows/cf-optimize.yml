@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 测试并更新
+        id: main
         env:
           CF_TOKEN: ${{ secrets.CF_API_TOKEN }}
           ZID: ${{ secrets.CF_ZONE_ID }}
@@ -17,9 +18,11 @@ jobs:
           IPS=("172.64.52.124" "162.159.58.65" "104.25.246.239" "172.64.32.126" "104.18.9.103" "104.16.88.12")
           BEST_IP=""
           BEST_LATENCY=9999
+          RESULTS=""
           
           for ip in "${IPS[@]}"; do
             LATENCY=$(curl -s -o /dev/null -w "%{time_total}" --connect-timeout 3 "https://$ip" 2>/dev/null | awk '{printf "%.0f", $1 * 1000}')
+            RESULTS="${RESULTS}${ip}: ${LATENCY}ms\n"
             echo "$ip: ${LATENCY}ms"
             if [ "$LATENCY" -lt "$BEST_LATENCY" ] 2>/dev/null; then
               BEST_LATENCY=$LATENCY
@@ -37,3 +40,34 @@ jobs:
             curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZID/dns_records" -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"$DOM\",\"content\":\"$BEST_IP\",\"ttl\":1,\"proxied\":false}"
           fi
           echo "已更新为: $BEST_IP"
+          
+          # 输出变量给下一步用
+          echo "BEST_IP=$BEST_IP" >> $GITHUB_OUTPUT
+          echo "BEST_LATENCY=$BEST_LATENCY" >> $GITHUB_OUTPUT
+          echo "RESULTS<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$RESULTS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Telegram通知
+        env:
+          TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          RESULT_text=$(cat <<EOF
+          🚀 CF优选IP更新完成！
+          
+          ✅ 最快IP: ${{ steps.main.outputs.BEST_IP }}
+          ⚡ 延迟: ${{ steps.main.outputs.BEST_LATENCY }}ms
+          
+          📊 测试结果:
+          ${{ steps.main.outputs.RESULTS}}
+          
+          🌐 域名: ${{ secrets.CF_DOMAIN }}
+          🕐 时间: $(date '+%Y-%m-%d %H:%M:%S')
+          EOF
+          )
+          
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT}" \
+            -d text="${RESULT_text}" \
+            -d parse_mode=""
