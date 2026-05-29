@@ -60,10 +60,30 @@ jobs:
             RESULT=$(curl -s -o /dev/null -w "%{http_code} %{time_total}" --connect-timeout 10 --max-time 15 "$URL" 2>/dev/null || echo "000 0")
             HTTP_CODE=$(echo "$RESULT" | awk '{print $1}')
             LATENCY=$(echo "$RESULT" | awk '{printf "%.0f", $2 * 1000}')
-            if [ "$HTTP_CODE" -ge 200 ] 2>/dev/null && [ "$HTTP_CODE" -lt 500 ] 2>/dev/null; then
-              STATUS="${STATUS}✅ ${NAME}: ${HTTP_CODE} | ${LATENCY}ms\n"
+            # 状态码说明
+            if [ "$HTTP_CODE" = "200" ]; then
+              STATUS_TEXT="正常"
+            elif [ "$HTTP_CODE" = "301" ] || [ "$HTTP_CODE" = "302" ]; then
+              STATUS_TEXT="重定向"
+            elif [ "$HTTP_CODE" = "403" ]; then
+              STATUS_TEXT="被封禁"
+            elif [ "$HTTP_CODE" = "451" ]; then
+              STATUS_TEXT="地区限制"
+            elif [ "$HTTP_CODE" = "522" ]; then
+              STATUS_TEXT="源站超时"
+            elif [ "$HTTP_CODE" = "523" ]; then
+              STATUS_TEXT="源站不可达"
+            elif [ "$HTTP_CODE" = "524" ]; then
+              STATUS_TEXT="源站响应慢"
+            elif [ "$HTTP_CODE" = "000" ]; then
+              STATUS_TEXT="连接超时"
             else
-              STATUS="${STATUS}❌ ${NAME}: ${HTTP_CODE} | ${LATENCY}ms\n"
+              STATUS_TEXT="HTTP ${HTTP_CODE}"
+            fi
+            if [ "$HTTP_CODE" -ge 200 ] 2>/dev/null && [ "$HTTP_CODE" -lt 500 ] 2>/dev/null; then
+              STATUS="${STATUS}✅ ${NAME}: ${STATUS_TEXT} (${LATENCY}ms)\n"
+            else
+              STATUS="${STATUS}❌ ${NAME}: ${STATUS_TEXT} (${LATENCY}ms)\n"
               ALL_OK=false
             fi
           done
