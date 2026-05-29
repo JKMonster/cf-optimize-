@@ -63,10 +63,16 @@ jobs:
             # 状态码说明
             if [ "$HTTP_CODE" = "200" ]; then
               STATUS_TEXT="正常"
+            elif [ "$HTTP_CODE" = "204" ]; then
+              STATUS_TEXT="正常"
             elif [ "$HTTP_CODE" = "301" ] || [ "$HTTP_CODE" = "302" ]; then
-              STATUS_TEXT="重定向"
+              STATUS_TEXT="重定向(正常)"
             elif [ "$HTTP_CODE" = "403" ]; then
-              STATUS_TEXT="被封禁"
+              STATUS_TEXT="未解锁"
+            elif [ "$HTTP_CODE" = "405" ]; then
+              STATUS_TEXT="正常"
+            elif [ "$HTTP_CODE" = "412" ]; then
+              STATUS_TEXT="正常"
             elif [ "$HTTP_CODE" = "451" ]; then
               STATUS_TEXT="地区限制"
             elif [ "$HTTP_CODE" = "522" ]; then
